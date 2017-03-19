@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html ng-app="fake-pos" lang="en">
+<head>
+    <meta charset="utf-8">
+
+    <title>Incredibly Fake Point-of-Sale</title>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.3/angular.min.js"></script>
+
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.6.3/angular-animate.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.6.3/angular-aria.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.6.3/angular-messages.min.js"></script>
+
+    <script src="http://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.js"></script>
+
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.css">
+
+    <script>
+angular.module('fake-pos', ['ngMaterial']).controller('listAvailableItems', function($scope, $http) {
+
+    $http.get('http://localhost:8080/api/getAllItems').then(function(response) {
+        $scope.availableItems = response.data;
+    })
+
+});
+
+    </script>
+
+    <style type="text/css">
+
+body {
+  background-color: #6F9CCC;
+}
+
+.available-items .item {
+  display: inline-block;
+  background-color: #C0E0DE;
+  color: #162521;
+  border: 2px solid #162521;
+  box-shadow: 0.5em 0.5em 0.25em #162521;
+  width: 10em;
+  min-height: 4em;
+  text-align: center;
+  vertical-align: middle;
+  margin: 1em;
+}
+
+.available-items .item .name {
+  margin: 1em 0.5em 1em 0.5em;
+}
+
+.available-items .item:hover {
+  background-color: #E0FFFE;
+  border-color: #3C474B;
+  box-shadow: 0.5em 0.5em 0.25em #3C474B;
+}
+
+.available-items .item:active {
+  background-color: #162521;
+  color: #C0E0DE;
+  box-shadow: none;
+}
+
+.order {
+  width: 20em;
+  margin: 1em 1em 1em 1em;
+}
+
+.order-content {
+  height: 100%;
+  border: 2px solid black;
+  background-color: #E0FFFE;
+  margin: 0.25em 0em 0.5em 0em;
+}
+
+.order-content table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-content .line-items {
+  min-height: 20em;
+}
+
+.order-content table tr:nth-child(even) {
+  background-color: #C0E0DE;
+}
+
+.order-content table tr:nth-child(odd) {
+  background-color: #E0FFFE;
+}
+
+.order-content .qty {
+  font-family: monospace;
+  width: 2em;
+  font-size: large;
+  padding-left: 0.25em;
+}
+
+.order-content .price {
+  width: 5em;
+  text-align: right;
+  font-family: monospace;
+  font-size: large;
+  padding-right: 0.25em;
+}
+
+.order-content .summary th {
+  width: 5em;
+  text-align: left;
+  padding-left: 0.25em;
+}
+
+
+    </style>
+
+</head>
+<body>
+  <div layout="row">
+    <div flex="grow" class="available-items" ng-controller="listAvailableItems">
+        <div class="item" ng-repeat="item in availableItems">
+            <div class="name">{{item.name}}</div>
+        </div>
+    </div>
+    <div flex="none" class="order" layout="column">
+        <div flex="none" class="order-id">New Order</div>
+        <div class="order-content" layout="column">
+            <div flex="grow">
+              <table class="line-items">
+                <tr>
+                    <td class="qty">1</td>
+                    <td class="name">Supreme Pizza</td>
+                    <td class="price">2.00</td>
+                </tr>
+                <tr>
+                    <td class="qty">2</td>
+                    <td class="name">Diet Coke</td>
+                    <td class="price">2.00</td>
+                </tr>
+              </table>
+            </div>
+            <div flex="none">
+              <table flex="none" class="summary">
+                <tr><th colspan="2">Subtotal:</th><td class="price">16.99</td></tr>
+                <tr><th colspan="2">Sales Tax:</th><td class="price">1.01</td></tr>
+                <tr><th colspan="2">Grand Total:</th><td class="price">18.00</td></tr>
+              </table>
+            </div>
+        </div>
+        <div class="order-actions" layout="row">
+            <button flex="none" class="void-button">Void</button>
+            <div flex="grow"></div>
+            <button flex="none" class="pay-now-button">Pay Now</button>
+        </div>
+    </div>
+  </div>
+</body>
+</html>
