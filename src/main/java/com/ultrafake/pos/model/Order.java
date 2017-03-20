@@ -2,9 +2,12 @@ package com.ultrafake.pos.model;
 
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
+
+import static com.ultrafake.pos.util.MathUtils.toMoneyString;
 
 public class Order {
 
@@ -21,7 +24,21 @@ public class Order {
 
     public List<OrderLineItem> lineItems = new LinkedList<OrderLineItem>();
 
+    public TenderRecord tenderRecord;
 
+    public String getDisplayOrderNumber() {
+        return String.format("%03d", orderNumber);
+    }
 
+    public String getDisplaySubtotal() {
+        return toMoneyString(subTotal);
+    }
 
+    public String getDisplayTotalTax() {
+        return toMoneyString(totalTax);
+    }
+
+    public String getDisplayGrandTotal() {
+        return toMoneyString(grandTotal);
+    }
 }

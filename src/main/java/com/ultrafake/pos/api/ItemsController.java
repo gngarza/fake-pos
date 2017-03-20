@@ -19,7 +19,7 @@ public class ItemsController {
     @Autowired
     Items items;
 
-    @RequestMapping("/api/getAllItems")
+    @RequestMapping("/api/items/getAllItems")
     public List<Item> getAllItems() {
         return items.getAllItems();
     }

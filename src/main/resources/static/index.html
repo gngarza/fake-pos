@@ -15,12 +15,209 @@
 
     <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.css">
 
-    <script>
-angular.module('fake-pos', ['ngMaterial']).controller('listAvailableItems', function($scope, $http) {
+    <script type="text/javascript">
+var fakePosModule = angular.module('fake-pos', ['ngMaterial'])
 
-    $http.get('http://localhost:8080/api/getAllItems').then(function(response) {
+fakePosModule.controller('orderEntryScreen', function($scope, $http) {
+
+    $scope.$on('itemSelected', function(event, message) {
+        $scope.$broadcast('addToOrder', message);
+    });
+
+});
+
+
+fakePosModule.controller('availableItems', function($scope, $http) {
+
+    // Load available items
+    $http.get('/api/items/getAllItems').then(function(response) {
         $scope.availableItems = response.data;
     })
+
+    $scope.itemSelected = function(itemName) {
+        $scope.$emit('itemSelected', itemName);
+    };
+
+});
+
+fakePosModule.controller('orderDetails', function($scope, $http, $mdDialog) {
+
+    $scope.selectedLineItem = null;
+
+    var pendingItem = null;
+
+    $scope.$on('addToOrder', function(event, item) {
+        if($scope.order.tenderRecord == null) {
+            addToOrder(item);
+        } else {
+            // I don't like this, but creating new orders is going outside the spec
+            // and it at least lets us make multiple orders without refreshing the
+            // page.
+            pendingItem = item;
+            createNewOrder();
+        }
+    });
+
+    $scope.displayOrderId = displayOrderId();
+
+    function displayOrderId() {
+        if($scope.order == null || $scope.order.orderNumber == -1) {
+            return "New Order";
+        } else {
+            return "Order #" + $scope.order.displayOrderNumber;
+        }
+    }
+
+    function createNewOrder() {
+        return $http.post('/api/orders/createNew').then(function(response) {
+            $scope.order = response.data;
+            $scope.selectedLineItem = null;
+            $scope.displayOrderId = displayOrderId();
+            if(pendingItem != null) {
+                addToOrder(pendingItem);
+                pendingItem = null;
+            }
+        });
+    }
+
+    function addToOrder(item) {
+        $http.post('/api/orders/addItem', {itemName: item.name}).then(function(response) {
+            $scope.order = response.data;
+            $scope.selectedLineItem = null;
+        });
+    }
+
+    $scope.lineItemSelected = function(orderLineItem) {
+        if($scope.selectedLineItem != null) {
+            $scope.selectedLineItem.selected = false;
+        }
+        orderLineItem.selected = true;
+        $scope.selectedLineItem = orderLineItem;
+    }
+
+    $scope.voidItem = function() {
+        $http
+            .post('/api/orders/voidItem', {itemName: $scope.selectedLineItem.item.name})
+            .then(function(response) {
+                $scope.order = response.data;
+                $scope.selectedLineItem = null;
+            });
+    }
+
+    $scope.showTenderDialog = function() {
+
+        var promise = $mdDialog.show({
+            locals: {order: $scope.order},
+            title: 'Tender Payment',
+            template: tenderDialogTemplate,
+            controller: 'tenderDialog'
+        });
+
+        promise.then(
+            function(order) {
+                $scope.order = order;
+                $scope.displayOrderId = displayOrderId();
+            },
+            function(failure) {
+                console.log('Internal error', failure);
+            });
+    }
+
+    createNewOrder();
+
+});
+
+var tenderDialogTemplate =
+   '<md-dialog class="tender-dialog">' +
+   '  <md-dialog-content layout="column">' +
+   '     <h2 flex="none">Tender Payment</h2>' +
+   '     <div layout="column" class="amounts">' +
+   '       <div class="form-error">{{tenderError}}</div>' +
+   '       <div class="form-row" layout="row">' +
+   '         <span class="label" flex="50">Amount Due:</span> ' +
+   '         <span flex="50" class="price">{{order.displayGrandTotal}}</span>' +
+   '       </div>' +
+   '       <div class="form-row" layout="row">' +
+   '         <span class="label" flex="50">Amount Tendered:</span> ' +
+   '         <span flex="50">' +
+   '           <input md-autofocus type="text" size="8" ' +
+   '                  ng-model="amountTenderedInput" ng-change="tenderAmountUpdated()">' +
+   '         </span>' +
+   '       </div>' +
+   '       <div class="form-row" layout="row">' +
+   '         <span class="label" flex="50">Change Due:</span> ' +
+   '         <span flex="50" class="price">{{changeDue}}</span>' +
+   '       </div>' +
+   '  </md-dialog-content>' +
+   '  <md-dialog-actions>' +
+   '    <div layout="row" class="tender-buttons">' +
+   '      <button flex="none" ng-click="closeDialog()" class="md-primary">' +
+   '        Cancel' +
+   '      </button>' +
+   '      <span flex="grow"></span> ' +
+   '      <button flex="none" ' +
+   '              ng-disabled="!tenderedAmountValid" ' +
+   '              ng-click="completeOrder()">' +
+   '        Tender' +
+   '      </button>' +
+   '    </div>' +
+   '  </md-dialog-actions>' +
+   '</md-dialog>'
+
+fakePosModule.controller('tenderDialog', function($scope, $http, $mdDialog, order) {
+
+    $scope.order = order;
+
+    $scope.changeDue = "0.00";
+
+    $scope.amountTenderedInput = "";
+
+    $scope.tenderError = "";
+
+    $scope.tenderedAmountValid = false;
+
+    function handleTenderError(resp) {
+        $scope.tenderError = resp.errorMessage;
+        $scope.tenderedAmountValid = false;
+        $scope.changeDue = "0.00";
+    }
+
+    $scope.tenderAmountUpdated = function() {
+        if($scope.amountTenderedInput == "") {
+            $scope.tenderError = "";
+            return;
+        }
+
+        $http.get('/api/orders/calcChangeDue',
+                  {params: {amountTendered : $scope.amountTenderedInput}})
+             .then(function(response) {
+
+            if(!response.data.valid) {
+                handleTenderError(response.data);
+            } else {
+                $scope.tenderError = "";
+                $scope.changeDue = response.data.displayChangeDue;
+                $scope.tenderedAmountValid = true;
+            }
+        });
+    }
+
+    $scope.closeDialog = function() {
+        $mdDialog.cancel();
+    };
+
+    $scope.completeOrder = function() {
+        $http.post('/api/orders/completeOrder',
+                   {amountTenderedInput: $scope.amountTenderedInput})
+             .then(function(response) {
+
+            if(!response.data.valid) {
+                handleTenderError(response.data);
+            } else {
+                $mdDialog.hide(response.data.order);
+            }
+        });
+    };
 
 });
 
@@ -82,6 +279,16 @@ body {
   min-height: 20em;
 }
 
+.order-content .line-items tr:nth-child(even).selected {
+  color:  #C0E0DE;
+  background-color: #162521;
+}
+
+.order-content .line-items tr:nth-child(odd).selected {
+  color: #E0FFFE;
+  background-color: #162521;
+}
+
 .order-content table tr:nth-child(even) {
   background-color: #C0E0DE;
 }
@@ -111,46 +318,102 @@ body {
   padding-left: 0.25em;
 }
 
+.tender-dialog {
+  width: 27em;
+}
 
-    </style>
+.tender-dialog h2 {
+  margin: 0em 0em 0.5em 0em;
+  padding-top: 0.5em;
+  text-align: center;
+}
+
+.tender-dialog .label {
+  text-align: right;
+  margin-right: 0.5em;
+}
+
+.tender-dialog .price {
+  font-family: monospace;
+  font-size: large;
+}
+
+.tender-dialog .tender-buttons {
+  width: 100%;
+}
+
+.tender-dialog .form-row {
+  vertical-align: middle;
+  line-height: 2em;
+}
+
+.tender-dialog .form-error {
+  color: red;
+  text-align: center;
+}
+</style>
 
 </head>
-<body>
+<body ng-controller="orderEntryScreen">
   <div layout="row">
-    <div flex="grow" class="available-items" ng-controller="listAvailableItems">
-        <div class="item" ng-repeat="item in availableItems">
+    <div flex="grow" class="available-items" ng-controller="availableItems">
+        <div class="item" ng-repeat="item in availableItems" ng-click="itemSelected(item)" >
             <div class="name">{{item.name}}</div>
         </div>
     </div>
-    <div flex="none" class="order" layout="column">
-        <div flex="none" class="order-id">New Order</div>
+    <div flex="none" class="order" layout="column" ng-controller="orderDetails">
+        <div flex="none" class="order-id">{{displayOrderId}}</div>
         <div class="order-content" layout="column">
             <div flex="grow">
               <table class="line-items">
-                <tr>
-                    <td class="qty">1</td>
-                    <td class="name">Supreme Pizza</td>
-                    <td class="price">2.00</td>
-                </tr>
-                <tr>
-                    <td class="qty">2</td>
-                    <td class="name">Diet Coke</td>
-                    <td class="price">2.00</td>
+                <tr ng-repeat="lineItem in order.lineItems"
+                    ng-click="lineItemSelected(lineItem)"
+                    ng-class="{'selected' : lineItem.selected}">
+                    <td class="qty">{{lineItem.qty}}</td>
+                    <td class="name">{{lineItem.item.name}}</td>
+                    <td class="price">{{lineItem.displayExtendedPrice}}</td>
                 </tr>
               </table>
             </div>
             <div flex="none">
               <table flex="none" class="summary">
-                <tr><th colspan="2">Subtotal:</th><td class="price">16.99</td></tr>
-                <tr><th colspan="2">Sales Tax:</th><td class="price">1.01</td></tr>
-                <tr><th colspan="2">Grand Total:</th><td class="price">18.00</td></tr>
+                <tr>
+                    <th colspan="2">Subtotal:</th>
+                    <td class="price">{{order.displaySubtotal}}</td>
+                </tr>
+                <tr>
+                    <th colspan="2">Sales Tax:</th>
+                    <td class="price">{{order.displayTotalTax}}</td>
+                </tr>
+                <tr>
+                    <th colspan="2">Grand Total:</th>
+                    <td class="price">{{order.displayGrandTotal}}</td>
+                </tr>
+                <tr ng-hide="order.tenderRecord == null">
+                    <th colspan="2">Amount Tendered:</th>
+                    <td class="price">{{order.tenderRecord.displayAmountTendered}}</td>
+                </tr>
+                <tr ng-hide="order.tenderRecord == null">
+                    <th colspan="2">Change Given:</th>
+                    <td class="price">{{order.tenderRecord.displayChangeGiven}}</td>
+                </tr>
               </table>
             </div>
         </div>
         <div class="order-actions" layout="row">
-            <button flex="none" class="void-button">Void</button>
+            <button flex="none"
+                    class="void-button"
+                    ng-disabled="!selectedLineItem"
+                    ng-click="voidItem()">
+                Void
+            </button>
             <div flex="grow"></div>
-            <button flex="none" class="pay-now-button">Pay Now</button>
+            <button flex="none"
+                    class="pay-now-button"
+                    ng-disabled="order.tenderRecord != null"
+                    ng-click="showTenderDialog()">
+                Pay Now
+            </button>
         </div>
     </div>
   </div>

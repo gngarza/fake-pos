@@ -60,4 +60,14 @@ public class Items {
         return itemList;
     }
 
+    public Item itemFor(String name) {
+        for(Item item : itemList) {
+            if(item.getName().equals(name)) {
+                return item;
+            }
+        }
+
+        throw new Error("Unknown item: " + name);
+    }
+
 }
