@@ -7,4 +7,10 @@ public class ChangeItemQuantityRequest {
 
     public int newQty;
 
+    public ChangeItemQuantityRequest() {}
+
+    public ChangeItemQuantityRequest(int newQty, String itemName) {
+        this.newQty = newQty;
+        this.itemName = itemName;
+    }
 }

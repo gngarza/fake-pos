@@ -42,4 +42,14 @@ public class ItemsTest {
         assertTrue("Should have unique names", allItems.size() == itemNames.size());
     }
 
+    @Test
+    public void itemFor() throws Exception {
+        // The apostrophe ain't the one on the keyboard (it's ’ not ').
+        Item item = items.itemFor("Meat Lover’s Pizza");
+
+        assertNotNull(item);
+        assertNotNull(item.getPrice());
+        assertTrue(item.getPrice().compareTo(BigDecimal.ZERO) > 0);
+    }
+
 }

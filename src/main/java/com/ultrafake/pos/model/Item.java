@@ -5,9 +5,11 @@ import java.math.BigDecimal;
 
 public class Item {
 
-    String name;
+    private String name;
 
-    BigDecimal price;
+    private BigDecimal price;
+
+    public Item() {}
 
     public Item(String name, BigDecimal price) {
         this.name = name;

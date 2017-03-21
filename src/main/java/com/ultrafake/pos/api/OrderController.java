@@ -16,7 +16,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 public class OrderController {
@@ -68,7 +67,7 @@ public class OrderController {
             lineItem.setPrice(item.getPrice());
             lineItem.setExtendedPrice(item.getPrice());
 
-            order.lineItems.add(lineItem);
+            order.getLineItems().add(lineItem);
         }
 
         updateTotals(order);
@@ -84,7 +83,7 @@ public class OrderController {
         Optional<OrderLineItem> maybeLineItem = findLineItem(order, request.itemName);
 
         if(maybeLineItem.isPresent()) {
-            order.lineItems.remove(maybeLineItem.get());
+            order.getLineItems().remove(maybeLineItem.get());
         }
 
         updateTotals(order);
@@ -105,10 +104,10 @@ public class OrderController {
         if(maybeLineItem.isPresent()) {
             OrderLineItem lineItem = maybeLineItem.get();
 
-            if(lineItem.getQty() - request.newQty <= 0) {
-                order.lineItems.remove(lineItem);
+            if(request.newQty <= 0) {
+                order.getLineItems().remove(lineItem);
             } else {
-                lineItem.setQty(lineItem.getQty() + request.newQty);
+                lineItem.setQty(request.newQty);
             }
         }
 
@@ -131,14 +130,14 @@ public class OrderController {
                 return CalcChangeDueResponse.error( "Please enter a non-negative number");
             }
 
-            if(amountTendered.compareTo(order.grandTotal) < 0) {
+            if(amountTendered.compareTo(order.getGrandTotal()) < 0) {
                 return CalcChangeDueResponse.error("Please enter an amount greater then what is owed");
             }
 
             CalcChangeDueResponse resp = new CalcChangeDueResponse();
             resp.valid = true;
             resp.displayChangeDue =
-                    MathUtils.toMoneyString(amountTendered.subtract(order.grandTotal));
+                    MathUtils.toMoneyString(amountTendered.subtract(order.getGrandTotal()));
 
             return resp;
 
@@ -159,7 +158,7 @@ public class OrderController {
 
         Order order = getCurrentOrder(session);
 
-        if(order.tenderRecord != null) {
+        if(order.getTenderRecord() != null) {
             resp.valid = true;
             resp.order = order;
         } else if(!changeDueResp.valid) {
@@ -169,12 +168,12 @@ public class OrderController {
             resp.valid = true;
 
             TenderRecord tenderRecord = new TenderRecord();
-            tenderRecord.amountTendered = new BigDecimal(request.amountTenderedInput);
-            tenderRecord.changeGiven = tenderRecord.amountTendered.subtract(order.grandTotal);
-            tenderRecord.timestamp = Instant.now();
+            tenderRecord.setAmountTendered(new BigDecimal(request.amountTenderedInput));
+            tenderRecord.setChangeGiven(tenderRecord.getAmountTendered().subtract(order.getGrandTotal()));
+            tenderRecord.setTimestamp(Instant.now());
 
-            order.tenderRecord = tenderRecord;
-            order.orderNumber = orderSeq.getAndIncrement();
+            order.setTenderRecord(tenderRecord);
+            order.setOrderNumber(orderSeq.getAndIncrement());
 
             resp.order = order;
         }
@@ -184,7 +183,7 @@ public class OrderController {
 
 
     private Optional<OrderLineItem> findLineItem(Order order, String itemName) {
-        return order.lineItems.stream()
+        return order.getLineItems().stream()
                 .filter(it -> it.getItem().getName().equals(itemName)).findAny();
     }
 
@@ -200,14 +199,13 @@ public class OrderController {
 
     protected void updateTotals(Order order) {
 
-        order.subTotal =
-                order.lineItems.stream()
-                     .map(OrderLineItem::getExtendedPrice)
-                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setSubTotal(order.getLineItems().stream()
+             .map(OrderLineItem::getExtendedPrice)
+             .reduce(BigDecimal.ZERO, BigDecimal::add));
 
-        order.totalTax = order.subTotal.multiply(salesTaxRate);
+        order.setTotalTax(order.getSubTotal().multiply(salesTaxRate));
 
-        order.grandTotal = order.subTotal.add(order.totalTax);
+        order.setGrandTotal(order.getSubTotal().add(order.getTotalTax()));
 
     }
 }

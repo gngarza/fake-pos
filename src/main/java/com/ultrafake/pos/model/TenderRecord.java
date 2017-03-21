@@ -6,19 +6,44 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public class TenderRecord {
-    public BigDecimal amountTendered;
-    public BigDecimal changeGiven;
-    public Instant timestamp;
+
+    private BigDecimal amountTendered;
+    private BigDecimal changeGiven;
+    private Instant timestamp;
 
     public String getDisplayAmountTendered() {
-        return MathUtils.toMoneyString(amountTendered);
+        return MathUtils.toMoneyString(getAmountTendered());
     }
 
     public String getDisplayChangeGiven() {
-        return MathUtils.toMoneyString(changeGiven);
+        return MathUtils.toMoneyString(getChangeGiven());
     }
 
     public String getDisplayTimestamp() {
-        return timestamp.toString();
+        return getTimestamp().toString();
+    }
+
+    public BigDecimal getAmountTendered() {
+        return amountTendered;
+    }
+
+    public void setAmountTendered(BigDecimal amountTendered) {
+        this.amountTendered = amountTendered;
+    }
+
+    public BigDecimal getChangeGiven() {
+        return changeGiven;
+    }
+
+    public void setChangeGiven(BigDecimal changeGiven) {
+        this.changeGiven = changeGiven;
+    }
+
+    public Instant getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(Instant timestamp) {
+        this.timestamp = timestamp;
     }
 }
